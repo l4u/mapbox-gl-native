@@ -1,0 +1,15 @@
+{
+  "name": "mapbox-gl-native",
+  "version": "0.0.1",
+  "description": "Provide access to mapbox-gl-native from node",
+  "main": "index.js",
+  "scripts": {
+    "install": "node-gyp rebuild"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "bindings": "^1.2.1",
+    "nan": "^1.2.0"
+  },
+  "gypfile": true
+}
