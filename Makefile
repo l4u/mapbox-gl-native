@@ -38,6 +38,10 @@ xtest: config.gypi clear_xcode_cache node
 
 ##### Makefile builds ##########################################################
 
+# Builds the node bindings
+node-tileserver: llmr node
+	mkdir -p build/node-tileserver/node_modules
+	cd build/node-tileserver; npm install ../../node-mapbox-gl-native/
 
 # Builds the linux app with make. This is also used by Travis CI
 linux: config.gypi linux/llmr-app.gyp node
