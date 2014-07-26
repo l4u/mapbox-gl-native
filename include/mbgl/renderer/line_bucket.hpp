@@ -17,6 +17,7 @@ class LineVertexBuffer;
 class TriangleElementsBuffer;
 class LineShader;
 class LinejoinShader;
+class LinepatternShader;
 struct pbf;
 
 class LineBucket : public Bucket {
@@ -38,6 +39,7 @@ public:
 
     void drawLines(LineShader& shader);
     void drawPoints(LinejoinShader& shader);
+    void drawLinePattern(LinepatternShader& shader);
 
 public:
     const StyleBucketLine &properties;

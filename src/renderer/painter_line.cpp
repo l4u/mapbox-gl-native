@@ -1,6 +1,9 @@
 #include <mbgl/renderer/painter.hpp>
 #include <mbgl/renderer/line_bucket.hpp>
+#include <mbgl/style/style.hpp>
 #include <mbgl/style/style_layer.hpp>
+#include <mbgl/map/sprite.hpp>
+#include <mbgl/geometry/sprite_atlas.hpp>
 #include <mbgl/map/map.hpp>
 
 using namespace mbgl;
@@ -59,8 +62,49 @@ void Painter::renderLine(LineBucket& bucket, std::shared_ptr<StyleLayer> layer_d
     }
 
     // var imagePos = properties.image && imageSprite.getPosition(properties.image);
-    bool imagePos = false;
-    if (imagePos) {
+
+    const std::shared_ptr<Sprite> &sprite = map.getStyle()->sprite;
+    if (properties.image.size() && sprite) {
+
+        SpriteAtlas &spriteAtlas = *map.getSpriteAtlas();
+        Rect<uint16_t> imagePos = spriteAtlas.getImage(properties.image, *sprite);
+        
+        float factor = 8.0 / std::pow(2, map.getState().getIntegerZoom() - id.z);
+
+        std::array<float, 2> imageSize = {{
+            imagePos.w * factor,
+            imagePos.h * factor
+        }
+        };
+
+        std::array<float, 2> offset = {{
+            (float)std::fmod(id.x * 4096, imageSize[0]),
+            (float)std::fmod(id.y * 4096, imageSize[1])
+        }
+        };
+        
+        useProgram(linepatternShader->program);
+        
+        linepatternShader->setMatrix(vtxMatrix);
+        linepatternShader->setExtrudeMatrix(extrudeMatrix);
+        linepatternShader->setLineWidth({{ outset, inset }});
+        linepatternShader->setColor(color);
+        linepatternShader->setRatio(map.getState().getPixelRatio());
+        linepatternShader->setPatternSize(imageSize);
+        linepatternShader->setPatternTopLeft({{
+            float(imagePos.x) / spriteAtlas.getWidth(),
+            float(imagePos.y) / spriteAtlas.getHeight(),
+        }});
+        linepatternShader->setPatternTopLeft({{
+            float(imagePos.x + imagePos.w) / spriteAtlas.getWidth(),
+            float(imagePos.y + imagePos.h) / spriteAtlas.getHeight(),
+        }});
+
+        bucket.drawLinePattern(*linepatternShader);
+        
+//        TODO DEBUG: fprintf from linepatternshader cpp
+
+        
         // var factor = 8 / Math.pow(2, painter.transform.zoom - params.z);
 
         // imageSprite.bind(gl, true);
