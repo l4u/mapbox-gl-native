@@ -60,6 +60,7 @@ struct TriangleElement {
 typedef uint16_t PointElement;
 
 void LineBucket::addGeometry(const std::vector<Coordinate>& vertices) {
+
     // TODO: use roundLimit
     // const float roundLimit = geometry.round_limit;
 
@@ -73,6 +74,7 @@ void LineBucket::addGeometry(const std::vector<Coordinate>& vertices) {
     bool closed = firstVertex.x == lastVertex.x && firstVertex.y == lastVertex.y;
 
     if (vertices.size() == 2 && closed) {
+        
         // fprintf(stderr, "a line may not have coincident points\n");
         return;
     }
@@ -97,6 +99,8 @@ void LineBucket::addGeometry(const std::vector<Coordinate>& vertices) {
         currentVertex = vertices[vertices.size() - 2];
         nextNormal = util::normal<double>(currentVertex, lastVertex);
     }
+    
+    
 
     int32_t start_vertex = (int32_t)vertexBuffer.index();
 
@@ -396,8 +400,12 @@ void LineBucket::drawLinePattern(LinepatternShader& shader) {
             continue;
         }
         group.array.bind(shader, vertexBuffer, triangleElementsBuffer, vertex_index);
-        glDrawElements(GL_TRIANGLES, group.elements_length * 3, GL_UNSIGNED_SHORT, elements_index);
+        glDrawElements(GL_POINTS, group.elements_length * 3, GL_UNSIGNED_SHORT, elements_index);
         vertex_index += group.vertex_length * vertexBuffer.itemSize;
         elements_index += group.elements_length * triangleElementsBuffer.itemSize;
     }
 }
+
+
+
+

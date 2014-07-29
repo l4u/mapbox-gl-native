@@ -61,11 +61,8 @@ void Painter::renderLine(LineBucket& bucket, std::shared_ptr<StyleLayer> layer_d
         bucket.drawPoints(*linejoinShader);
     }
 
-    // var imagePos = properties.image && imageSprite.getPosition(properties.image);
-
     const std::shared_ptr<Sprite> &sprite = map.getStyle()->sprite;
     if (properties.image.size() && sprite) {
-
         SpriteAtlas &spriteAtlas = *map.getSpriteAtlas();
         Rect<uint16_t> imagePos = spriteAtlas.getImage(properties.image, *sprite);
         
@@ -84,39 +81,27 @@ void Painter::renderLine(LineBucket& bucket, std::shared_ptr<StyleLayer> layer_d
         };
         
         useProgram(linepatternShader->program);
-        
+
         linepatternShader->setMatrix(vtxMatrix);
         linepatternShader->setExtrudeMatrix(extrudeMatrix);
         linepatternShader->setLineWidth({{ outset, inset }});
-        linepatternShader->setColor(color);
+        linepatternShader->setOffset(offset);
         linepatternShader->setRatio(map.getState().getPixelRatio());
         linepatternShader->setPatternSize(imageSize);
         linepatternShader->setPatternTopLeft({{
             float(imagePos.x) / spriteAtlas.getWidth(),
             float(imagePos.y) / spriteAtlas.getHeight(),
         }});
-        linepatternShader->setPatternTopLeft({{
+        linepatternShader->setPatternBottomRight({{
             float(imagePos.x + imagePos.w) / spriteAtlas.getWidth(),
             float(imagePos.y + imagePos.h) / spriteAtlas.getHeight(),
         }});
+        
+        spriteAtlas.bind(true);
+        glDepthRange(strata + strata_epsilon, 1.0f);
+        // not sure if that's necessary, but doesn't seem to make a difference
 
         bucket.drawLinePattern(*linepatternShader);
-        
-//        TODO DEBUG: fprintf from linepatternshader cpp
-
-        
-        // var factor = 8 / Math.pow(2, painter.transform.zoom - params.z);
-
-        // imageSprite.bind(gl, true);
-
-        // //factor = Math.pow(2, 4 - painter.transform.zoom + params.z);
-        // gl.switchShader(painter.linepatternShader, painter.translatedMatrix || painter.posMatrix, painter.extrudeMatrix);
-        // shader = painter.linepatternShader;
-        // glUniform2fv(painter.linepatternShader.u_pattern_size, [imagePos.size[0] * factor, imagePos.size[1] ]);
-        // glUniform2fv(painter.linepatternShader.u_pattern_tl, imagePos.tl);
-        // glUniform2fv(painter.linepatternShader.u_pattern_br, imagePos.br);
-        // glUniform1f(painter.linepatternShader.u_fade, painter.transform.z % 1.0);
-
     } else {
         useProgram(lineShader->program);
         lineShader->setMatrix(vtxMatrix);

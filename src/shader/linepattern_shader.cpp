@@ -18,38 +18,55 @@ LinepatternShader::LinepatternShader()
     
 
     a_pos = glGetAttribLocation(program, "a_pos");
-//    a_extrude = glGetAttribLocation(program, "a_extrude");
+    a_extrude = glGetAttribLocation(program, "a_extrude");
     a_linesofar = glGetAttribLocation(program, "a_linesofar");
-    u_posmatrix = glGetUniformLocation(program, "u_posmatrix");
     u_exmatrix = glGetUniformLocation(program, "u_exmatrix");
+    u_matrix = glGetUniformLocation(program, "u_matrix");
     u_ratio = glGetUniformLocation(program, "u_ratio");
     u_color = glGetUniformLocation(program, "u_color");
-//    u_point = glGetUniformLocation(program, "u_point");
     u_linewidth = glGetUniformLocation(program, "u_linewidth");
     u_gamma = glGetUniformLocation(program, "u_gamma");
     u_pattern_size = glGetUniformLocation(program, "u_pattern_size");
     u_pattern_tl = glGetUniformLocation(program, "u_pattern_tl");
     u_pattern_br = glGetUniformLocation(program, "u_pattern_br");
+    u_offset = glGetUniformLocation(program, "u_offset");
 //    u_fade = glGetUniformLocation(program, "u_fade");
+//        note -- pretty sure we don't need u_color
+//    u_posmatrix = glGetUniformLocation(program, "u_posmatrix");
+//    u_point = glGetUniformLocation(program, "u_point");
 
 // do i need to figure out how to pass varying ?
 
 //
-//    // fprintf(stderr, "LinepatternShader:\n");
-//    // fprintf(stderr, "    - u_linewidth: %d\n", u_linewidth);
-//    // fprintf(stderr, "    - u_point: %d\n", u_point);
-//    // fprintf(stderr, "    - u_gamma: %d\n", u_gamma);
-//    // fprintf(stderr, "    - u_pattern_size: %d\n", u_pattern_size);
-//    // fprintf(stderr, "    - u_pattern_tl: %d\n", u_pattern_tl);
-//    // fprintf(stderr, "    - u_pattern_br: %d\n", u_pattern_br);
-//    // fprintf(stderr, "    - u_fade: %d\n", u_fade);
+    fprintf(stderr, "LinepatternShader:\n");
+    fprintf(stderr, "    - u_linewidth: %d\n", u_linewidth);
+//    fprintf(stderr, "    - u_point: %d\n", u_point);
+    fprintf(stderr, "    - u_gamma: %d\n", u_gamma);
+    fprintf(stderr, "    - u_pattern_size: %d\n", u_pattern_size);
+    fprintf(stderr, "    - u_pattern_tl: %d\n", u_pattern_tl);
+    fprintf(stderr, "    - u_pattern_br: %d\n", u_pattern_br);
+    fprintf(stderr, "    - u_ratio: %d\n", u_ratio);
+    fprintf(stderr, "    - u_color: %d\n", u_color);
+    fprintf(stderr, "    - a_pos: %d\n", a_pos);
+    fprintf(stderr, "    - a_extrude: %d\n", a_extrude);
+    fprintf(stderr, "    - a_linesofar: %d\n", a_linesofar);
+    fprintf(stderr, "    - u_offset: %d\n", u_offset);
+    fprintf(stderr, "    - u_gamma: %d\n", u_gamma);
+
+    
+//    fprintf(stderr, "    - u_fade: %d\n", u_fade);
 //    //    and then some
 }
 
 void LinepatternShader::bind(char *offset) {
     glEnableVertexAttribArray(a_pos);
-    glVertexAttribPointer(a_pos, 2, GL_SHORT, false, 8, offset);
-//    ^ should the 4th here be 0 or 8?
+    glVertexAttribPointer(a_pos, 2, GL_SHORT, false, 8, offset + 0);
+    
+    glEnableVertexAttribArray(a_extrude);
+    glVertexAttribPointer(a_extrude, 2, GL_BYTE, false, 8, offset + 4);
+    
+    glEnableVertexAttribArray(a_linesofar);
+    glVertexAttribPointer(a_linesofar, 1, GL_SHORT, false, 8, offset + 6);
 }
 
 void LinepatternShader::setPatternSize(const std::array<float, 2>& new_pattern_size) {
@@ -102,6 +119,13 @@ void LinepatternShader::setRatio(float new_ratio) {
     if (ratio != new_ratio) {
         glUniform1f(u_ratio, new_ratio);
         ratio = new_ratio;
+    }
+}
+
+void LinepatternShader::setOffset(const std::array<float, 2>& new_offset) {
+    if (offset != new_offset) {
+        glUniform2fv(u_offset, 1, new_offset.data());
+        offset = new_offset;
     }
 }
 

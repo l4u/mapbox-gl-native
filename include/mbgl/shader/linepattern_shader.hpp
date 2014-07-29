@@ -14,21 +14,26 @@ public:
     void setPatternSize(const std::array<float, 2>& new_pattern_size);
     void setPatternTopLeft(const std::array<float, 2>& new_pattern_tl);
     void setPatternBottomRight(const std::array<float, 2>& new_pattern_br);
-//    void setFade();
+    void setFade();
     void setExtrudeMatrix(const std::array<float, 16>& new_exmatrix);
     void setColor(const std::array<float, 4>& new_color);
     void setLineWidth(const std::array<float, 2>& new_linewidth);
     void setRatio(float new_ratio);
+    void setOffset(const std::array<float, 2>& offset);
     void setGamma(float new_gamma);
 
 private:
     int32_t a_pos = -1;
     int32_t a_linesofar = -1;
+    int32_t a_extrude = -1;
     std::array<float, 16> exmatrix = {{}};
     int32_t u_exmatrix = -1;
     
-    std::array<float, 16> posmatrix = {{}};
-    int32_t u_posmatrix = -1;
+//    std::array<float, 16> posmatrix = {{}};
+//    int32_t u_posmatrix = -1;
+    
+    std::array<float, 2> offset = {{}};
+    int32_t u_offset = -1;
 
     float ratio = 0;
     int32_t u_ratio = -1;
