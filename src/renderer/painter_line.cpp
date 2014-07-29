@@ -67,6 +67,8 @@ void Painter::renderLine(LineBucket& bucket, std::shared_ptr<StyleLayer> layer_d
         Rect<uint16_t> imagePos = spriteAtlas.getImage(properties.image, *sprite);
         
         float factor = 8.0 / std::pow(2, map.getState().getIntegerZoom() - id.z);
+        
+        float fade = std::fmod(map.getState().getZoom(), 1.0);
 
         std::array<float, 2> imageSize = {{
             imagePos.w * factor,
@@ -79,14 +81,13 @@ void Painter::renderLine(LineBucket& bucket, std::shared_ptr<StyleLayer> layer_d
             (float)std::fmod(id.y * 4096, imageSize[1])
         }
         };
-        
         useProgram(linepatternShader->program);
-
         linepatternShader->setMatrix(vtxMatrix);
         linepatternShader->setExtrudeMatrix(extrudeMatrix);
+        lineShader->setDashArray({{ dash_length, dash_gap }});
         linepatternShader->setLineWidth({{ outset, inset }});
-        linepatternShader->setOffset(offset);
         linepatternShader->setRatio(map.getState().getPixelRatio());
+        
         linepatternShader->setPatternSize(imageSize);
         linepatternShader->setPatternTopLeft({{
             float(imagePos.x) / spriteAtlas.getWidth(),
@@ -96,12 +97,15 @@ void Painter::renderLine(LineBucket& bucket, std::shared_ptr<StyleLayer> layer_d
             float(imagePos.x + imagePos.w) / spriteAtlas.getWidth(),
             float(imagePos.y + imagePos.h) / spriteAtlas.getHeight(),
         }});
+        linepatternShader->setOffset(offset);
+        linepatternShader->setGamma(map.getState().getPixelRatio());
+        linepatternShader->setFade(fade);
         
         spriteAtlas.bind(true);
-        glDepthRange(strata + strata_epsilon, 1.0f);
-        // not sure if that's necessary, but doesn't seem to make a difference
-
+        glDepthRange(strata + strata_epsilon, 1.0f);  // may or may not matter
+        
         bucket.drawLinePattern(*linepatternShader);
+
     } else {
         useProgram(lineShader->program);
         lineShader->setMatrix(vtxMatrix);
