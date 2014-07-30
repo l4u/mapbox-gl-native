@@ -70,32 +70,18 @@ void Painter::renderFill(FillBucket& bucket, const FillProperties& properties, c
         // glStencilOp(GL_KEEP, GL_KEEP, GL_INCR_WRAP);
     }
 
+    // Only draw the fill when it's either opaque and we're drawing opaque
+    // fragments or when it's translucent and we're drawing translucent
+    // fragments
     if ((fill_color[3] >= 1.0f) == (pass == Opaque)) {
         const std::shared_ptr<Sprite> &sprite = map.getStyle()->sprite;
         if (properties.image.size() && sprite) {
             SpriteAtlas &spriteAtlas = *map.getSpriteAtlas();
             Rect<uint16_t> imagePos = spriteAtlas.getImage(properties.image, *sprite);
-
-
-            float factor = 8.0 / std::pow(2, map.getState().getIntegerZoom() - id.z);
-            float mix = std::fmod(map.getState().getZoom(), 1.0);
-
-            std::array<float, 2> imageSize = {{
-                    imagePos.w * factor,
-                    imagePos.h * factor
-                }
-            };
-
-            std::array<float, 2> offset = {{
-                    (float)std::fmod(id.x * 4096, imageSize[0]),
-                    (float)std::fmod(id.y * 4096, imageSize[1])
-                }
-            };
+            float zoomFraction = map.getState().getZoomFraction();
 
             useProgram(patternShader->program);
             patternShader->setMatrix(vtxMatrix);
-            patternShader->setOffset(offset);
-            patternShader->setPatternSize(imageSize);
             patternShader->setPatternTopLeft({{
                 float(imagePos.x) / spriteAtlas.getWidth(),
                 float(imagePos.y) / spriteAtlas.getHeight(),
@@ -104,17 +90,25 @@ void Painter::renderFill(FillBucket& bucket, const FillProperties& properties, c
                 float(imagePos.x + imagePos.w) / spriteAtlas.getWidth(),
                 float(imagePos.y + imagePos.h) / spriteAtlas.getHeight(),
             }});
-            patternShader->setColor(fill_color);
-            patternShader->setMix(mix);
+            patternShader->setMix(zoomFraction);
+            patternShader->setOpacity(properties.opacity);
+
+            float factor = 8.0 / std::pow(2, map.getState().getIntegerZoom() - id.z);
+
+            mat4 matrix;
+            matrix::identity(matrix);
+            matrix::scale(matrix, matrix,
+                          1 / (imagePos.w * factor),
+                          1 / (imagePos.h * factor),
+                          1);
+            patternShader->setMatrix(matrix);
+
             spriteAtlas.bind(true);
 
             // Draw the actual triangles into the color & stencil buffer.
             glDepthRange(strata + strata_epsilon, 1.0f);
             bucket.drawElements(*patternShader);
         } else {
-            // Only draw the fill when it's either opaque and we're drawing opaque
-            // fragments or when it's translucent and we're drawing translucent
-            // fragments
             // Draw filling rectangle.
             useProgram(plainShader->program);
             plainShader->setMatrix(vtxMatrix);

@@ -7,6 +7,8 @@
 #include <mbgl/util/time.hpp>
 #include <mbgl/util/clip_ids.hpp>
 #include <mbgl/util/constants.hpp>
+#include <mbgl/geometry/sprite_atlas.hpp>
+
 #if defined(DEBUG)
 #include <mbgl/util/timer.hpp>
 #endif
@@ -138,8 +140,7 @@ void Painter::clear() {
     glStencilMask(0xFF);
     depthMask(true);
 
-    const BackgroundProperties &properties = map.getStyle()->getBackgroundProperties();
-    glClearColor(properties.color[0], properties.color[1], properties.color[2], properties.color[3]);
+    glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
@@ -181,6 +182,64 @@ void Painter::renderTileLayer(const Tile& tile, std::shared_ptr<StyleLayer> laye
     }
 }
 
+void Painter::renderBackground(std::shared_ptr<StyleLayer> layer_desc) {
+    const BackgroundProperties& properties = layer_desc->getProperties<BackgroundProperties>();
+    const std::shared_ptr<Sprite> &sprite = map.getStyle()->sprite;
+
+    if (properties.image.size() && sprite) {
+        SpriteAtlas &spriteAtlas = *map.getSpriteAtlas();
+        Rect<uint16_t> imagePos = spriteAtlas.getImage(properties.image, *sprite);
+        float zoomFraction = map.getState().getZoomFraction();
+
+        useProgram(patternShader->program);
+        patternShader->setMatrix(vtxMatrix);
+        patternShader->setPatternTopLeft({{
+            float(imagePos.x) / spriteAtlas.getWidth(),
+            float(imagePos.y) / spriteAtlas.getHeight(),
+        }});
+        patternShader->setPatternBottomRight({{
+            float(imagePos.x + imagePos.w) / spriteAtlas.getWidth(),
+            float(imagePos.y + imagePos.h) / spriteAtlas.getHeight(),
+        }});
+        patternShader->setMix(zoomFraction);
+        patternShader->setOpacity(1.0);
+
+//        var center = transform.locationCoordinate(transform.center);
+        float scale = 1 / std::pow(2, zoomFraction);
+
+        mat4 matrix;
+//        matrix::identity(matrix);
+//        matrix::scale(matrix, matrix,
+//                      1 / imagePos.w,
+//                      1 / imagePos.h,
+//                      1);
+//        matrix::translate(matrix, matrix,
+//                          (center.column * 512) % imagePos.w,
+//                          (center.row    * 512) % imagePos.h,
+//                          0);
+//        matrix::rotate(matrix, matrix, -map.getState().getAngle());
+//        matrix::scale(matrix, matrix,
+//                       scale * map.getState().getWidth()  / 2,
+//                      -scale * map.getState().getHeight() / 2,
+//                      1);
+        patternShader->setMatrix(matrix);
+
+        backgroundBuffer.bind();
+        patternShader->bind(0);
+        spriteAtlas.bind(true);
+    } else {
+        useProgram(plainShader->program);
+        plainShader->setMatrix(identityMatrix);
+        plainShader->setColor(properties.color);
+        backgroundBuffer.bind();
+        plainShader->bind(0);
+    }
+
+    glDisable(GL_STENCIL_TEST);
+    glDepthRange(strata + strata_epsilon, 1.0f);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glEnable(GL_STENCIL_TEST);
+}
 
 const mat4 &Painter::translatedMatrix(const std::array<float, 2> &translation, const Tile::ID &id, TranslateAnchorType anchor) {
     if (translation[0] == 0 && translation[1] == 0) {

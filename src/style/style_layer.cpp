@@ -236,6 +236,7 @@ void StyleLayer::applyStyleProperties<BackgroundProperties>(const float z, const
     properties.set<BackgroundProperties>();
     BackgroundProperties &background = properties.get<BackgroundProperties>();
     applyStyleProperty(PropertyKey::BackgroundColor, background.color, z, now);
+    applyStyleProperty(PropertyKey::BackgroundImage, background.image, z, now);
 }
 
 void StyleLayer::updateProperties(float z, const timestamp now) {

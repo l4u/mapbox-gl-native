@@ -19,18 +19,15 @@ PatternShader::PatternShader()
     a_pos = glGetAttribLocation(program, "a_pos");
 
     u_matrix = glGetUniformLocation(program, "u_matrix");
-    u_color = glGetUniformLocation(program, "u_color");
-    u_offset = glGetUniformLocation(program, "u_offset");
-    u_pattern_size = glGetUniformLocation(program, "u_pattern_size");
+    u_pattern_matrix = glGetUniformLocation(program, "u_patternmatrix");
+    u_opacity = glGetUniformLocation(program, "u_opacity");
     u_pattern_tl = glGetUniformLocation(program, "u_pattern_tl");
     u_pattern_br = glGetUniformLocation(program, "u_pattern_br");
     u_mix = glGetUniformLocation(program, "u_mix");
 
     // fprintf(stderr, "PatternShader:\n");
     // fprintf(stderr, "    - u_matrix: %d\n", u_matrix);
-    // fprintf(stderr, "    - u_color: %d\n", u_color);
-    // fprintf(stderr, "    - u_offset: %d\n", u_offset);
-    // fprintf(stderr, "    - u_pattern_size: %d\n", u_pattern_size);
+    // fprintf(stderr, "    - u_opacity: %d\n", u_opacity);
     // fprintf(stderr, "    - u_pattern_tl: %d\n", u_pattern_tl);
     // fprintf(stderr, "    - u_pattern_br: %d\n", u_pattern_br);
     // fprintf(stderr, "    - u_mix: %d\n", u_mix);
@@ -41,24 +38,17 @@ void PatternShader::bind(char *offset) {
     glVertexAttribPointer(a_pos, 2, GL_SHORT, false, 0, offset);
 }
 
-void PatternShader::setColor(const std::array<float, 4>& new_color) {
-    if (color != new_color) {
-        glUniform4fv(u_color, 1, new_color.data());
-        color = new_color;
+void PatternShader::setPatternMatrix(const mat4& new_matrix) {
+    if (pattern_matrix != new_matrix) {
+        glUniformMatrix3fv(u_pattern_matrix, 1, GL_FALSE, new_matrix.data());
+        pattern_matrix = new_matrix;
     }
 }
 
-void PatternShader::setOffset(const std::array<float, 2>& new_offset) {
-    if (offset != new_offset) {
-        glUniform2fv(u_offset, 1, new_offset.data());
-        offset = new_offset;
-    }
-}
-
-void PatternShader::setPatternSize(const std::array<float, 2>& new_pattern_size) {
-    if (pattern_size != new_pattern_size) {
-        glUniform2fv(u_pattern_size, 1, new_pattern_size.data());
-        pattern_size = new_pattern_size;
+void PatternShader::setOpacity(float new_opacity) {
+    if (opacity != new_opacity) {
+        glUniform1f(u_opacity, new_opacity);
+        opacity = new_opacity;
     }
 }
 
@@ -82,4 +72,3 @@ void PatternShader::setMix(float new_mix) {
         mix = new_mix;
     }
 }
-

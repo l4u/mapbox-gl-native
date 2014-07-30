@@ -644,7 +644,15 @@ void Map::renderLayer(std::shared_ptr<StyleLayer> layer_desc, RenderPass pass) {
             }
         }
     } else if (layer_desc->id == "background") {
-        // This layer defines the background color.
+        // This layer defines a background color/image.
+        if (pass == Translucent) return;
+
+        if (debug::renderTree) {
+            std::cout << std::string(indent * 4, ' ') << "- " << layer_desc->id << " ("
+                      << layer_desc->type << ")" << std::endl;
+        }
+
+        painter.renderBackground(layer_desc);
     } else {
         // This is a singular layer.
         if (!layer_desc->bucket) {

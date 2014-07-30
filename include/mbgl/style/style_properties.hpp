@@ -95,6 +95,7 @@ struct RasterProperties {
 struct BackgroundProperties {
     inline BackgroundProperties() {}
     Color color = {{ 0, 0, 0, 1 }};
+    std::string image;
 };
 
 typedef util::variant<

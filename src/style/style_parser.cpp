@@ -626,6 +626,7 @@ void StyleParser::parseStyle(JSVal value, ClassProperties &klass) {
     parseOptionalProperty<PropertyTransition>("transition-raster-fade", Key::RasterFade, klass, value);
 
     parseOptionalProperty<Function<Color>>("background-color", Key::BackgroundColor, klass, value);
+    parseOptionalProperty<std::string>("background-image", Key::BackgroundImage, klass, value);
 }
 
 std::unique_ptr<RasterizeProperties> StyleParser::parseRasterize(JSVal value) {

@@ -86,6 +86,7 @@ public:
     void renderIcon(IconBucket& bucket, std::shared_ptr<StyleLayer> layer_desc, const Tile::ID& id);
     void renderText(TextBucket& bucket, std::shared_ptr<StyleLayer> layer_desc, const Tile::ID& id);
     void renderRaster(RasterBucket& bucket, std::shared_ptr<StyleLayer> layer_desc, const Tile::ID& id);
+    void renderBackground(std::shared_ptr<StyleLayer> layer_desc);
 
     void preparePrerender(PrerenderedTexture &texture);
     void finishPrerender(PrerenderedTexture &texture);
@@ -143,6 +144,12 @@ public:
         return flipMatrix;
     }();
 
+    const mat4 identityMatrix = []{
+        mat4 identity;
+        matrix::identity(identity);
+        return identity;
+    }();
+
 private:
     Map& map;
 
@@ -170,6 +177,11 @@ public:
     std::unique_ptr<DotShader> dotShader;
     std::unique_ptr<CompositeShader> compositeShader;
     std::unique_ptr<GaussianShader> gaussianShader;
+
+    VertexBuffer backgroundBuffer = {
+        -1, -1,  1, -1,
+        -1,  1,  1,  1
+    };
 
     // Set up the stencil quad we're using to generate the stencil mask.
     VertexBuffer tileStencilBuffer = {

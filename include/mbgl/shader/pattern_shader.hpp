@@ -2,6 +2,7 @@
 #define MBGL_SHADER_SHADER_PATTERN
 
 #include <mbgl/shader/shader.hpp>
+#include <mbgl/util/mat4.hpp>
 
 namespace mbgl {
 
@@ -11,9 +12,8 @@ public:
 
     void bind(char *offset);
 
-    void setColor(const std::array<float, 4>& color);
-    void setOffset(const std::array<float, 2>& offset);
-    void setPatternSize(const std::array<float, 2>& pattern_size);
+    void setOpacity(float opacity);
+    void setPatternMatrix(const mat4& matrix);
     void setPatternTopLeft(const std::array<float, 2>& pattern_tl);
     void setPatternBottomRight(const std::array<float, 2>& pattern_br);
     void setMix(float mix);
@@ -21,14 +21,11 @@ public:
 private:
     int32_t a_pos = -1;
 
-    std::array<float, 4> color = {{}};
-    int32_t u_color = -1;
+    float opacity = 1;
+    int32_t u_opacity = -1;
 
-    std::array<float, 2> offset = {{}};
-    int32_t u_offset = -1;
-
-    std::array<float, 2> pattern_size = {{}};
-    int32_t u_pattern_size = -1;
+    mat4 pattern_matrix = {{}};
+    int32_t u_pattern_matrix = -1;
 
     std::array<float, 2> pattern_tl = {{}};
     int32_t u_pattern_tl = -1;
