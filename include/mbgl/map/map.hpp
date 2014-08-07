@@ -1,26 +1,33 @@
-
 #ifndef MBGL_MAP_MAP
 #define MBGL_MAP_MAP
 
-#include <uv.h>
-
-#include <mbgl/map/view.hpp>
 #include <mbgl/map/transform.hpp>
-#include <mbgl/style/style.hpp>
-#include <mbgl/geometry/glyph_atlas.hpp>
-#include <mbgl/text/glyph_store.hpp>
 #include <mbgl/renderer/painter.hpp>
+
 #include <mbgl/util/noncopyable.hpp>
-#include <mbgl/util/texturepool.hpp>
+#include <mbgl/util/time.hpp>
+#include <mbgl/util/uv.hpp>
 
 #include <cstdint>
-#include <string>
-#include <map>
+#include <atomic>
+#include <iosfwd>
+#include <memory>
+#include <set>
+#include <vector>
 
 namespace mbgl {
 
-class Source;
+class GlyphAtlas;
+class GlyphStore;
+class LayerDescription;
 class SpriteAtlas;
+class Sprite;
+class Style;
+class StyleLayer;
+class StyleLayerGroup;
+class StyleSource;
+class Texturepool;
+class View;
 
 class Map : private util::noncopyable {
 public:
@@ -89,9 +96,9 @@ public:
 
     // Rotation
     void rotateBy(double sx, double sy, double ex, double ey, double duration = 0);
-    void setAngle(double angle, double duration = 0);
-    void setAngle(double angle, double cx, double cy);
-    double getAngle() const;
+    void setBearing(double degrees, double duration = 0);
+    void setBearing(double degrees, double cx, double cy);
+    double getBearing() const;
     void resetNorth();
     void startRotating();
     void stopRotating();
@@ -104,10 +111,11 @@ public:
 
 public:
     inline const TransformState &getState() const { return state; }
-    inline std::shared_ptr<const Style> getStyle() const { return style; }
+    inline std::shared_ptr<Style> getStyle() const { return style; }
     inline std::shared_ptr<GlyphAtlas> getGlyphAtlas() { return glyphAtlas; }
     inline std::shared_ptr<GlyphStore> getGlyphStore() { return glyphStore; }
     inline std::shared_ptr<SpriteAtlas> getSpriteAtlas() { return spriteAtlas; }
+    std::shared_ptr<Sprite> getSprite();
     inline std::shared_ptr<Texturepool> getTexturepool() { return texturepool; }
     inline std::shared_ptr<uv::loop> getLoop() { return loop; }
     inline timestamp getAnimationTime() const { return animationTime; }
@@ -166,6 +174,7 @@ private:
     std::shared_ptr<GlyphAtlas> glyphAtlas;
     std::shared_ptr<GlyphStore> glyphStore;
     std::shared_ptr<SpriteAtlas> spriteAtlas;
+    std::shared_ptr<Sprite> sprite;
     std::shared_ptr<Texturepool> texturepool;
 
     Painter painter;

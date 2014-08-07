@@ -4,6 +4,67 @@
 
 #import <Foundation/Foundation.h>
 
+@interface URLHandler : NSObject
+@property (nonatomic) mbgl::Map *map;
+
+- (void)handleGetURLEvent:(NSAppleEventDescriptor *)event
+           withReplyEvent:(NSAppleEventDescriptor *)replyEvent;
+@end
+
+@implementation URLHandler
+
+- (void)handleGetURLEvent:(NSAppleEventDescriptor *)event
+           withReplyEvent:(NSAppleEventDescriptor *)replyEvent {
+    NSString* urlString = [[event paramDescriptorForKeyword:keyDirectObject] stringValue];
+    NSURL *url = [NSURL URLWithString:urlString];
+    NSMutableDictionary *params = [[NSMutableDictionary alloc] init];
+    for (NSString *param in [[url query] componentsSeparatedByString:@"&"]) {
+        NSArray *parts = [param componentsSeparatedByString:@"="];
+        if([parts count] < 2) continue;
+        [params setObject:[parts objectAtIndex:1] forKey:[parts objectAtIndex:0]];
+    }
+
+    double latitude = 0, longitude = 0, zoom = 0, bearing = 0;
+    bool hasCenter = false, hasZoom = false, hasBearing = false;
+
+    NSString *centerString = [params objectForKey:@"center"];
+    if (centerString) {
+        NSArray *latlon = [centerString componentsSeparatedByString:@","];
+        if ([latlon count] == 2) {
+            latitude = [[latlon objectAtIndex:0] doubleValue];
+            longitude = [[latlon objectAtIndex:1] doubleValue];
+            hasCenter = true;
+        }
+    }
+
+    NSString *zoomString = [params objectForKey:@"zoom"];
+    if (zoomString) {
+        zoom = [zoomString doubleValue];
+        hasZoom = true;
+    }
+
+    NSString *bearingString = [params objectForKey:@"bearing"];
+    if (bearingString) {
+        bearing = [bearingString doubleValue];
+        hasBearing = true;
+    }
+
+    if ([self map]) {
+        if (hasCenter && hasZoom) {
+            [self map]->setLonLatZoom(longitude, latitude, zoom);
+        } else if (hasCenter) {
+            [self map]->setLonLat(longitude, latitude);
+        } else if (hasZoom) {
+            [self map]->setZoom(zoom);
+        }
+
+        if (hasBearing) {
+            [self map]->setBearing(bearing);
+        }
+    }
+}
+@end
+
 int main() {
     mbgl::Log::Set<mbgl::NSLogBackend>();
 
@@ -13,8 +74,11 @@ int main() {
     // Load settings
     mbgl::Settings_NSUserDefaults settings;
     map.setLonLatZoom(settings.longitude, settings.latitude, settings.zoom);
-    map.setAngle(settings.angle);
+    map.setBearing(settings.bearing);
     map.setDebug(settings.debug);
+
+    URLHandler *handler = [[URLHandler alloc] init];
+    [handler setMap:&map];
 
     // Set access token if present
     NSString *accessToken = [[NSProcessInfo processInfo] environment][@"MAPBOX_ACCESS_TOKEN"];
@@ -28,11 +92,15 @@ int main() {
                                                   error:nil];
     map.setStyleJSON((std::string)[json cStringUsingEncoding:[NSString defaultCStringEncoding]]);
 
+    NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];
+    [appleEventManager setEventHandler:handler andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];
+
+
     int ret = view.run();
 
     // Save settings
     map.getLonLatZoom(settings.longitude, settings.latitude, settings.zoom);
-    settings.angle = map.getAngle();
+    settings.bearing = map.getBearing();
     settings.debug = map.getDebug();
     settings.save();
 

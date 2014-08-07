@@ -1,5 +1,6 @@
 #include <mbgl/map/map.hpp>
 #include <mbgl/map/source.hpp>
+#include <mbgl/map/view.hpp>
 #include <mbgl/platform/platform.hpp>
 #include <mbgl/map/sprite.hpp>
 #include <mbgl/util/transition.hpp>
@@ -10,13 +11,20 @@
 #include <mbgl/util/constants.hpp>
 #include <mbgl/util/uv.hpp>
 #include <mbgl/util/std.hpp>
+#include <mbgl/style/style.hpp>
+#include <mbgl/text/glyph_store.hpp>
+#include <mbgl/geometry/glyph_atlas.hpp>
 #include <mbgl/style/style_layer_group.hpp>
 #include <mbgl/style/style_bucket.hpp>
+#include <mbgl/util/texturepool.hpp>
 #include <mbgl/geometry/sprite_atlas.hpp>
 
 #include <algorithm>
 #include <memory>
 #include <iostream>
+
+#define _USE_MATH_DEFINES
+#include <cmath>
 
 using namespace mbgl;
 
@@ -25,6 +33,7 @@ Map::Map(View& view)
       transform(view),
       style(std::make_shared<Style>()),
       glyphAtlas(std::make_shared<GlyphAtlas>(1024, 1024)),
+      glyphStore(std::make_shared<GlyphStore>()),
       spriteAtlas(std::make_shared<SpriteAtlas>(512, 512)),
       texturepool(std::make_shared<Texturepool>()),
       painter(*this),
@@ -177,7 +186,9 @@ void Map::setup() {
 
 void Map::setStyleJSON(std::string newStyleJSON) {
     styleJSON.swap(newStyleJSON);
+    sprite.reset();
     style->loadJSON((const uint8_t *)styleJSON.c_str());
+    glyphStore->setURL(style->glyph_url);
     update();
 }
 
@@ -192,6 +203,17 @@ void Map::setAccessToken(std::string access_token) {
 std::string Map::getAccessToken() const {
     return accessToken;
 }
+
+std::shared_ptr<Sprite> Map::getSprite() {
+    const float pixelRatio = state.getPixelRatio();
+    const std::string &sprite_url = style->getSpriteURL();
+    if (!sprite || sprite->pixelRatio != pixelRatio) {
+        sprite = Sprite::Create(sprite_url, pixelRatio);
+    }
+
+    return sprite;
+}
+
 
 #pragma mark - Size
 
@@ -333,20 +355,20 @@ void Map::rotateBy(double sx, double sy, double ex, double ey, double duration) 
 }
 
 // Note: This function is called from another thread. Make sure you only call threadsafe functions!
-void Map::setAngle(double angle, double duration) {
-    transform.setAngle(angle, duration * 1_second);
+void Map::setBearing(double degrees, double duration) {
+    transform.setAngle(-degrees * M_PI / 180, duration * 1_second);
     update();
 }
 
 // Note: This function is called from another thread. Make sure you only call threadsafe functions!
-void Map::setAngle(double angle, double cx, double cy) {
-    transform.setAngle(angle, cx, cy);
+void Map::setBearing(double degrees, double cx, double cy) {
+    transform.setAngle(-degrees * M_PI / 180, cx, cy);
     update();
 }
 
 // Note: This function is called from another thread. Make sure you only call threadsafe functions!
-double Map::getAngle() const {
-    return transform.getAngle();
+double Map::getBearing() const {
+    return -transform.getAngle() / M_PI * 180;
 }
 
 // Note: This function is called from another thread. Make sure you only call threadsafe functions!
@@ -421,13 +443,13 @@ void Map::updateSources() {
     updateSources(style->layers);
 
     // Then, construct or destroy the actual source object, depending on enabled state.
-    for (const std::shared_ptr<StyleSource> &source : activeSources) {
-        if (source->enabled) {
-            if (!source->source) {
-                source->source = std::make_shared<Source>(*source, getAccessToken());
+    for (const std::shared_ptr<StyleSource> &style_source : activeSources) {
+        if (style_source->enabled) {
+            if (!style_source->source) {
+                style_source->source = std::make_shared<Source>(style_source->info, getAccessToken());
             }
         } else {
-            source->source.reset();
+            style_source->source.reset();
         }
     }
 
@@ -494,24 +516,6 @@ void Map::prepare() {
     bool dimensionsChanged = oldState.getFramebufferWidth() != state.getFramebufferWidth() ||
                              oldState.getFramebufferHeight() != state.getFramebufferHeight();
 
-    if (pixelRatioChanged) {
-        style->sprite = std::make_shared<Sprite>(*this, state.getPixelRatio());
-        if (style->sprite_url.size()) {
-            style->sprite->load(style->sprite_url);
-        }
-        spriteAtlas->resize(state.getPixelRatio());
-    }
-
-    // Create a new glyph store object in case the glyph URL changed.
-    // TODO: Move this to a less frequently called place; we only need to do this when the
-    // stylesheet changes.
-    if (glyphStore && glyphStore->glyphURL != style->glyph_url) {
-        glyphStore.reset();
-    }
-    if (!glyphStore && style->glyph_url.size()) {
-        glyphStore = std::make_shared<GlyphStore>(style->glyph_url);
-    }
-
     if (pixelRatioChanged || dimensionsChanged) {
         painter.clearFramebuffers();
     }
@@ -521,9 +525,8 @@ void Map::prepare() {
     style->updateProperties(state.getNormalizedZoom(), animationTime);
 
     // Allow the sprite atlas to potentially pull new sprite images if needed.
-    if (style->sprite && style->sprite->isLoaded()) {
-        spriteAtlas->update(*style->sprite);
-    }
+    spriteAtlas->resize(state.getPixelRatio());
+    spriteAtlas->update(*getSprite());
 
     updateTiles();
 }
@@ -556,8 +559,6 @@ void Map::render() {
     for (const std::shared_ptr<StyleSource> &source : getActiveSources()) {
         source->source->finishRender(painter);
     }
-
-    painter.renderMatte();
 
     // Schedule another rerender when we definitely need a next frame.
     if (transform.needsTransition() || style->hasTransitions()) {
@@ -637,7 +638,7 @@ void Map::renderLayer(std::shared_ptr<StyleLayer> layer_desc, RenderPass pass) {
                 }
             }
         }
-    } else if (layer_desc->id == "background") {
+    } else if (layer_desc->type == StyleLayerType::Background) {
         // This layer defines the background color.
     } else {
         // This is a singular layer.
@@ -653,6 +654,20 @@ void Map::renderLayer(std::shared_ptr<StyleLayer> layer_desc, RenderPass pass) {
 
         StyleSource &style_source = *layer_desc->bucket->style_source;
 
+        // Skip this layer if there is no data.
+        if (!style_source.source) {
+            return;
+        }
+
+        // Skip this layer if it's outside the range of min/maxzoom.
+        // This may occur when there /is/ a bucket created for this layer, but the min/max-zoom
+        // is set to a fractional value, or value that is larger than the source maxzoom.
+        const double zoom = state.getZoom();
+        if (layer_desc->bucket->min_zoom > zoom ||
+            layer_desc->bucket->max_zoom <= zoom) {
+            return;
+        }
+
         // Abort early if we can already deduce from the bucket type that
         // we're not going to render anything anyway during this pass.
         switch (layer_desc->type) {
@@ -663,13 +678,9 @@ void Map::renderLayer(std::shared_ptr<StyleLayer> layer_desc, RenderPass pass) {
                 if (pass == Opaque) return;
                 if (!layer_desc->getProperties<LineProperties>().isVisible()) return;
                 break;
-            case StyleLayerType::Icon:
+            case StyleLayerType::Symbol:
                 if (pass == Opaque) return;
-                if (!layer_desc->getProperties<IconProperties>().isVisible()) return;
-                break;
-            case StyleLayerType::Text:
-                if (pass == Opaque) return;
-                if (!layer_desc->getProperties<TextProperties>().isVisible()) return;
+                if (!layer_desc->getProperties<SymbolProperties>().isVisible()) return;
                 break;
             case StyleLayerType::Raster:
                 if (pass == Translucent) return;
@@ -684,8 +695,6 @@ void Map::renderLayer(std::shared_ptr<StyleLayer> layer_desc, RenderPass pass) {
                       << layer_desc->type << ")" << std::endl;
         }
 
-        if (style_source.source) {
-            style_source.source->render(painter, layer_desc);
-        }
+        style_source.source->render(painter, layer_desc);
     }
 }
